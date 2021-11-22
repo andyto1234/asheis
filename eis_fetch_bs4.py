@@ -8,7 +8,7 @@ months = [1,2,3,4,5,6,7,8,9,10,11,12]
 
 for month in months:
     num_days = calendar.monthrange(year, month)[1]
-    days=[day+1 for day in num_days]
+    days=[day+1 for day in range(num_days)]
     month = '{:0>2}'.format(month)
     for day in days:
         day = '{:0>2}'.format(day)
