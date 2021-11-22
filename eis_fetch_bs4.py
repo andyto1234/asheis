@@ -17,5 +17,7 @@ for month in months:
         html = scraper.get(url).content
         soup = bs4.BeautifulSoup(html, 'html.parser')
         iframes = soup.find_all(text=True)
+        iframes = [i for i in iframes if 'data.h5' in i]
+
         for data in iframes:
             a = eispac.download.download_hdf5_data(data)
