@@ -3,11 +3,14 @@ import bs4
 import datetime, calendar
 import eispac
 import multiprocessing as mp
+from functools import partial
 
 
 years = [2017,2018,2019,2020]
 months = [1,2,3,4,5,6]
 
+
+function = partial(eispac.download.download_hdf5_data, local_top='/disk/solar9/st3/data_eis')
 
 for year in years:
     for month in months:
@@ -24,4 +27,4 @@ for year in years:
             iframes = [i for i in iframes if 'data.h5' in i]
             pool = mp.Pool(processes=5)
             mylist = [str(x) for y,x in enumerate(iframes)]
-            pool.map(eispac.download.download_hdf5_data, mylist,local_top='/disk/solar9/st3/data_eis')
+            pool.map(function, mylist)
