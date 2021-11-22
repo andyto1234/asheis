@@ -12,7 +12,7 @@ for month in months:
     month = '{:0>2}'.format(month)
     for day in days:
         day = '{:0>2}'.format(day)
-        url = f'https://eis.nrl.navy.mil/level1/hdf5/2021/{month}/{day}/'
+        url = f'https://eis.nrl.navy.mil/level1/hdf5/{year}/{month}/{day}/'
         scraper = cfscrape.create_scraper()
         html = scraper.get(url).content
         soup = bs4.BeautifulSoup(html, 'html.parser')
