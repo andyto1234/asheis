@@ -22,5 +22,5 @@ for month in months:
         iframes = [i for i in iframes if 'data.h5' in i]
     
         pool = mp.Pool(processes=5)
-        mylist = [y for y,x in enumerate(iframes)]
+        mylist = [x for y,x in enumerate(iframes)]
         pool.map(eispac.download.download_hdf5_data, mylist)
