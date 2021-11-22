@@ -8,6 +8,8 @@ import multiprocessing as mp
 year = 2020
 months = [1,2,3,4,5,6]
 
+
+
 for month in months:
     num_days = calendar.monthrange(year, month)[1]
     days=[day+1 for day in range(num_days)]
@@ -20,7 +22,6 @@ for month in months:
         soup = bs4.BeautifulSoup(html, 'html.parser')
         iframes = soup.find_all(text=True)
         iframes = [i for i in iframes if 'data.h5' in i]
-    
         pool = mp.Pool(processes=5)
-        mylist = [x for y,x in enumerate(iframes)]
+        mylist = [str(x) for y,x in enumerate(iframes)]
         pool.map(eispac.download.download_hdf5_data, mylist)
