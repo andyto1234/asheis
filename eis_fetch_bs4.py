@@ -2,6 +2,8 @@ import cfscrape
 import bs4
 import datetime, calendar
 import eispac
+import multiprocessing as mp
+
 
 year = 2020
 months = [1,2,3,4,5,6,7,8,9,10,11,12]
@@ -18,6 +20,7 @@ for month in months:
         soup = bs4.BeautifulSoup(html, 'html.parser')
         iframes = soup.find_all(text=True)
         iframes = [i for i in iframes if 'data.h5' in i]
-
-        for data in iframes:
-            a = eispac.download.download_hdf5_data(data)
+    
+        pool = mp.Pool(processes=5)
+        mylist = [y for y,x in enumerate(iframes)]
+        pool.map(eispac.download.download_hdf5_data, mylist)
