@@ -13,7 +13,7 @@ months = [1,2,3,4,5,6]
 function = partial(eispac.download.download_hdf5_data, local_top='/disk/solar9/st3/data_eis')
 
 places = []
-file=open('/disk/solar17/st3/python_dir/asheis/data.txt','w')
+file=open('/disk/solar17/st3/python/asheis/data.txt','w')
 for line in file:
     currentPlace = line[:-1]
     places.append(currentPlace)
