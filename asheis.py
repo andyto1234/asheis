@@ -29,7 +29,7 @@ def load_axes_labels():
 
 class asheis:
     
-    def __init__(self, filename):
+    def __init__(self, filename, ncpu='max'):
         self.filename = filename
         self.dict = {
             "fe_12_195" : ["fe_12_195_119.2c.template.h5",0],
@@ -40,6 +40,7 @@ class asheis:
             "fe_13_202" : ["fe_13_202_044.1c.template.h5",0],
             "fe_13_203" : ["fe_13_203_826.2c.template.h5",1]
         }
+        self.ncpu = ncpu
         
     def fit_data(self,line,product):
         template_name=self.dict[f'{line}'][0]
@@ -48,7 +49,7 @@ class asheis:
         if path.is_file() == False:
             template = eispac.read_template(eispac.data.get_fit_template_filepath(template_name))
             cube = eispac.read_cube(self.filename, window=template.central_wave)
-            fit_res = eispac.fit_spectra(cube, template, ncpu='max')
+            fit_res = eispac.fit_spectra(cube, template, ncpu=self.ncpu)
             save_filepaths = eispac.save_fit(fit_res)
         else:
             fit_res=eispac.read_fit(path)
@@ -58,9 +59,9 @@ class asheis:
     
     def directory_setup(self, amap):
         date = amap.date.strftime("%Y_%m_%d__%H_%M_%S")
-        Path(f'fitted_data/fits/').mkdir(parents=True, exist_ok=True)
-        Path(f'fitted_data/{amap.measurement.lower().split()[-1]}/').mkdir(parents=True, exist_ok=True)
-        amap.save(f"fitted_data/fits/eis_{date}_{'_'.join(amap.measurement.lower().split())}.fits", overwrite=True)
+        Path(f'images/fits/').mkdir(parents=True, exist_ok=True)
+        Path(f'images/{amap.measurement.lower().split()[-1]}/').mkdir(parents=True, exist_ok=True)
+        amap.save(f"images/fits/eis_{date}_{'_'.join(amap.measurement.lower().split())}.fits", overwrite=True)
         return date
     
     def plot_map(self, date, amap, colorbar=False, savefig=True):
@@ -69,20 +70,20 @@ class asheis:
         if colorbar==True: plt.colorbar() 
         load_axes_labels()
         # plt.savefig(f'{date}/eis_{m.measurement.lower().replace(" ","_").replace(".","_")}.png')
-        # if savefig==True: plt.savefig(f'fitted_data/{amap.measurement.lower().split()[-1]}/eis_{date}_{amap.measurement.lower().replace(" ","_").replace(".","_")}.png')
-        plt.savefig(f'fitted_data/{amap.measurement.lower().split()[-1]}/eis_{date}_{amap.measurement.lower().replace(" ","_").replace(".","_")}.png')
+        if savefig==True: plt.savefig(f'images/{amap.measurement.lower().split()[-1]}/eis_{date}_{amap.measurement.lower().replace(" ","_").replace(".","_")}.png')
+        # plt.savefig(f'images/{amap.measurement.lower().split()[-1]}/eis_{date}_{amap.measurement.lower().replace(" ","_").replace(".","_")}.png')
 
     def get_intensity(self, line):
-        fit_res = self.fit_data(line,'int')
-        m = fit_res.get_map(self.dict[f'{line}'][1],measurement='intensity')
-        date = self.directory_setup(m)
-        self.plot_map(date, m)
+        fit_res = self.fit_data(line,'int') # Get fitdata
+        m = fit_res.get_map(self.dict[f'{line}'][1],measurement='intensity') # From fitdata get map
+        date = self.directory_setup(m) # Creating directories
+        self.plot_map(date, m) # Plot maps
         
     def get_velocity(self, line, vmin=-10,vmax=10):
         fit_res = self.fit_data(line,'vel')
         m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='velocity')
         date = self.directory_setup(m)
-        m.plot_settings['norm'] = ImageNormalize(vmin=vmin,vmax=vmax)
+        m.plot_settings['norm'] = ImageNormalize(vmin=vmin,vmax=vmax) # adjusting the velocity saturation
         self.plot_map(date, m, colorbar=True)
         
     def get_width(self, line):
@@ -103,21 +104,21 @@ class asheis:
         templates = [eispac.read_template(eispac.data.get_fit_template_filepath(t)) for t in template_names]
         for t in templates:
             cube = eispac.read_cube(self.filename, window=t.central_wave)
-            fit_res = eispac.fit_spectra(cube, t, ncpu='max')
+            fit_res = eispac.fit_spectra(cube, t, ncpu=self.ncpu)
             fit_res.fit['int'] = fit_res.shift2wave(fit_res.fit['int'],wave=195.119)
             m = fit_res.get_map(component = self.dict[lines[0]][1], measurement='intensity')
             date = m.date.strftime("%Y_%m_%d__%H_%M_%S")
-            # Path(f'{date}/fitted_data/').mkdir(parents=True, exist_ok=True)
-            # m.save(f"{date}/fitted_data/eis_{'_'.join(m.measurement.lower().split())}.fits", overwrite=True)
-            Path(f'fitted_data/fits/').mkdir(parents=True, exist_ok=True)
-            Path(f'fitted_data/sis_composition/').mkdir(parents=True, exist_ok=True)
-            m.save(f"fitted_data/fits/eis_{date}_{'_'.join(m.measurement.lower().split())}.fits", overwrite=True)
+            # Path(f'{date}/images/').mkdir(parents=True, exist_ok=True)
+            # m.save(f"{date}/images/eis_{'_'.join(m.measurement.lower().split())}.fits", overwrite=True)
+            Path(f'images/fits/').mkdir(parents=True, exist_ok=True)
+            Path(f'images/sis_composition/').mkdir(parents=True, exist_ok=True)
+            m.save(f"images/fits/eis_{date}_{'_'.join(m.measurement.lower().split())}.fits", overwrite=True)
             lines.append(f"eis_{date}_{'_'.join(m.measurement.lower().split())}.fits")
-        m_Si = sunpy.map.Map(f'fitted_data/fits/{lines[-2]}')
-        m_S = sunpy.map.Map(f'fitted_data/fits/{lines[-1]}')
+        m_Si = sunpy.map.Map(f'images/fits/{lines[-2]}')
+        m_S = sunpy.map.Map(f'images/fits/{lines[-1]}')
         m_SiS = m_Si
         m_SiS.meta['line_id'] = lines[2]
-        m_SiS.save(f"fitted_data/fits/eis_{'_'.join(m_SiS.measurement.lower().split())}.fits", overwrite=True)
+        m_SiS.save(f"images/fits/eis_{'_'.join(m_SiS.measurement.lower().split())}.fits", overwrite=True)
         m_SiS = sunpy.map.Map(m_Si.data/m_S.data, m_Si.meta)
         # m_SiS.peek(vmax=4,cmap='RdYlBu')
         load_plotting_routine()
@@ -126,4 +127,4 @@ class asheis:
         plt.colorbar()
         load_axes_labels()
         # plt.savefig(f'{date}/eis_{m_SiS.measurement.lower().replace(" ","_").replace(".","_")}.png')
-        plt.savefig(f'fitted_data/sis_composition/eis_{date}_{m_SiS.measurement.lower().replace(" ","_").replace(".","_")}.png')
+        plt.savefig(f'images/sis_composition/eis_{date}_{m_SiS.measurement.lower().replace(" ","_").replace(".","_")}.png')
