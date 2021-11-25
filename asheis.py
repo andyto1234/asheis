@@ -131,4 +131,5 @@ class asheis:
 
         
 if __name__ == '__main__':
-    sys.exit(main())  # next section explains the use of sys.exit
+    load_plotting_routine()
+    load_axes_labels()
