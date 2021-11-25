@@ -20,7 +20,7 @@ for line in file:
 
 # for place in places:
 places = places[0:1000]
-pool = mp.Pool(processes=7)
+pool = mp.Pool(processes=10)
 mylist = [str(x) for y,x in enumerate(places)]
 pool.map(function, mylist)
 
