@@ -128,3 +128,7 @@ class asheis:
         load_axes_labels()
         # plt.savefig(f'{date}/eis_{m_SiS.measurement.lower().replace(" ","_").replace(".","_")}.png')
         plt.savefig(f'images/sis_composition/eis_{date}_{m_SiS.measurement.lower().replace(" ","_").replace(".","_")}.png')
+
+        
+if __name__ == '__main__':
+    sys.exit(main())  # next section explains the use of sys.exit
