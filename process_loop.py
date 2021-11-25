@@ -7,7 +7,7 @@ if __name__ == '__main__':
     files = glob.glob('/disk/solar9/st3/data_eis/*.data.h5')
 
     for file in files:
-        myfits = asheis(file, ncpu="30")
+        myfits = asheis(file, ncpu="40")
         
         try:
             myfits.get_intensity('fe_12_195')
