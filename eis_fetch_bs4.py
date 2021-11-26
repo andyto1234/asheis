@@ -10,7 +10,7 @@ years = [2017,2018,2019,2020]
 months = [1,2,3,4,5,6]
 
 
-function = partial(eispac.download.download_hdf5_data, local_top='/disk/solar9/st3/data_eis')
+function = partial(eispac.download.download_hdf5_data, local_top='/disk/solar8/st3/data_eis')
 
 places = []
 file=open('/disk/solar17/st3/python/asheis/data.txt','r')
