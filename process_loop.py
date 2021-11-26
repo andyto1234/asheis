@@ -3,8 +3,9 @@ import glob
 
 
 if __name__ == '__main__':
-    
-    files = glob.glob('/disk/solar9/st3/data_eis/*.data.h5')
+    # [0,1000] : '/disk/solar9/st3/data_eis/*.data.h5'
+    # [1000,2000] : '/disk/solar8/st3/data_eis/*.data.h5'
+    files = glob.glob('/disk/solar8/st3/data_eis/*.data.h5')
 
     for file in files:
         myfits = asheis(file, ncpu="40")
