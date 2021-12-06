@@ -1,6 +1,6 @@
 ## MSSL Python Routines for EIS
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/andyto1234/asheis/HEAD)
+To run this tutorial notebook in the cloud (recommended, no installation needed!), simply click this badge - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/andyto1234/asheis/HEAD)
 
 Work in progress...
 
