@@ -1,0 +1,4 @@
+sunpy
+pfsspy[performance]
+ipywidgets
+git+git://github.com/USNavalResearchLaboratory/eispac.git@main
