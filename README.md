@@ -1,7 +1,6 @@
 ## MSSL Python Routines for EIS
 
 - To run this tutorial notebook in the cloud (recommended, no installation needed!), simply click this badge - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/andyto1234/asheis/HEAD)
-
 - To run this notebook locally, clone this repository and install all the requirements in `requirements.txt`
 
 This package/tutorial is designed to introduce the basics of `EISpac`, and provide a convenient wrapper for the tool USNavalResearchLaboratory developed. #GoCheckThemOut. This tutorial will emphasise on three parts:
