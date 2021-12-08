@@ -4,8 +4,8 @@
 - To run this notebook locally, clone this repository and install all the requirements in `requirements.txt`
 
 This package/tutorial is designed to introduce the basics of `EISpac`, and provide a convenient wrapper for the tool USNavalResearchLaboratory developed. #GoCheckThemOut. This tutorial will emphasise on three parts:
-- Introduce the basic commands in Python (Tutorial_Basics.ipyn)
-- Downloading EIS data from NRL (Tutorial.ipyn)
+- Introduce the basic commands in Python (Tutorial_Basics.ipynb)
+- Downloading EIS data from NRL (Tutorial.ipynb)
 - Introduce EIS data processing routines
 - Demonstrate EISpac wrapper `asheis`
 
