@@ -2,4 +2,5 @@ sunpy
 astropy
 pfsspy[performance]
 ipywidgets
+git+git://github.com/wtbarnes/sunpy-soar.git@filter-near-time
 git+git://github.com/USNavalResearchLaboratory/eispac.git@main
