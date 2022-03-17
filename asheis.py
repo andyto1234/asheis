@@ -7,6 +7,7 @@ from matplotlib import colors
 import matplotlib.pyplot as plt
 from datetime import datetime
 from astropy.visualization import ImageNormalize, quantity_support
+from alpha_code import alpha, alpha_map
 
 
 def load_plotting_routine():
@@ -64,7 +65,7 @@ class asheis:
         amap.save(f"images/fits/eis_{date}_{'_'.join(amap.measurement.lower().split())}.fits", overwrite=True)
         return date
     
-    def plot_map(self, date, amap, colorbar=False, savefig=True):
+    def plot_map(self, date, amap, colorbar=False, savefig=True, **kwargs):
         load_plotting_routine()
         amap.plot()
         if colorbar==True: plt.colorbar() 
@@ -92,11 +93,25 @@ class asheis:
         date = self.directory_setup(m)
         self.plot_map(date, m, colorbar=True)
 
+    def get_alpha(self, line,vmin=0,vmax=0.3,cmap='viridis'):
+        template_name=self.dict[f'{line}'][0]
+        template = eispac.read_template(eispac.data.get_fit_template_filepath(template_name))
+        fit_res = self.fit_data(line,'int')
+        data_cube = eispac.read_cube(self.filename, window=template.central_wave)
+        m = fit_res.get_map(self.dict[f'{line}'][1],measurement='intensity')
+        m.meta['measrmnt'] = 'Alpha'
+        # mapvalue = alpha_map(fit_res, data_cube, self.ncpu)
+        m = sunpy.map.Map(alpha_map(fit_res, data_cube, self.ncpu), m.meta)
+        m.plot_settings['norm'] = ImageNormalize(vmin=vmin,vmax=vmax)
+        m.plot_settings['cmap']=plt.get_cmap(cmap)
+        date = self.directory_setup(m)
+        self.plot_map(date, m, colorbar=True)
+        
     def get_composition(self, linepair, vmin=0,vmax=4):
         if linepair == "SiS":
             lines=['si_10_258','s_10_264','Si X-S X 1']
-        # elif linepair == "CaAr":
-        #     lines=['ca_14_193','ar_14_194','Ca XIV-Ar XIV 1'] 
+        elif linepair == "CaAr":
+            lines=['ca_14_193','ar_14_194','Ca XIV-Ar XIV 1'] 
         else:
             print('No line database can be found. Add your line in code.')
         
