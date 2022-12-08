@@ -55,7 +55,7 @@ class asheis:
         else:
             fit_res=eispac.read_fit(path)
 
-        fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
+        # fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
         return fit_res
     
     def directory_setup(self, amap):
