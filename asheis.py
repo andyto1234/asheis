@@ -108,6 +108,9 @@ class asheis:
         self.plot_map(date, m, colorbar=True)
         
     def get_composition(self, linepair, vmin=0,vmax=4):
+        '''
+        This quick look composition code is incomplete and probably doesn't work. Especially be careful of shift2wave code.
+        '''
         if linepair == "SiS":
             lines=['si_10_258','s_10_264','Si X-S X 1']
         elif linepair == "CaAr":
