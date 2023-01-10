@@ -29,7 +29,9 @@ def load_axes_labels():
 
 
 class asheis:
-    
+    '''
+    The fitting routine auto align array and map to the 195.119 window 
+    '''
     def __init__(self, filename, ncpu='max'):
         self.filename = filename
         self.dict = {
@@ -44,6 +46,7 @@ class asheis:
         self.ncpu = ncpu
         
     def fit_data(self,line,product):
+        from eispac.instr import ccd_offset
         template_name=self.dict[f'{line}'][0]
         # print(self.filename.replace("data.h5",template_name))
         path = Path(f'{self.filename}'.replace("data.h5",template_name).replace(".template",f"-{self.dict[f'{line}'][1]}.fit"))
@@ -51,11 +54,13 @@ class asheis:
             template = eispac.read_template(eispac.data.get_fit_template_filepath(template_name))
             cube = eispac.read_cube(self.filename, window=template.central_wave)
             fit_res = eispac.fit_spectra(cube, template, ncpu=self.ncpu)
+            fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
+            disp = ccd_offset(195.119) - ccd_offset(float(fit_res.fit['line_ids'][self.dict[f'{line}'][1]].split(' ')[-1]))
+            fit_res.meta['mod_index']['crval2']-=disp
             save_filepaths = eispac.save_fit(fit_res)
         else:
             fit_res=eispac.read_fit(path)
 
-        # fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
         return fit_res
     
     def directory_setup(self, amap):
@@ -67,7 +72,7 @@ class asheis:
     
     def plot_map(self, date, amap, colorbar=False, savefig=True, **kwargs):
         load_plotting_routine()
-        amap.plot()
+        amap.plot(**kwargs)
         if colorbar==True: plt.colorbar() 
         load_axes_labels()
         # plt.savefig(f'{date}/eis_{m.measurement.lower().replace(" ","_").replace(".","_")}.png')
@@ -79,6 +84,7 @@ class asheis:
         m = fit_res.get_map(self.dict[f'{line}'][1],measurement='intensity') # From fitdata get map
         date = self.directory_setup(m) # Creating directories
         self.plot_map(date, m) # Plot maps
+        return m
         
     def get_velocity(self, line, vmin=-10,vmax=10):
         fit_res = self.fit_data(line,'vel')
@@ -118,35 +124,15 @@ class asheis:
         else:
             print('No line database can be found. Add your line in code.')
         
-        template_names=[self.dict[lines[0]][0],self.dict[lines[1]][0]]
-        templates = [eispac.read_template(eispac.data.get_fit_template_filepath(t)) for t in template_names]
-        for t in templates:
-            cube = eispac.read_cube(self.filename, window=t.central_wave)
-            fit_res = eispac.fit_spectra(cube, t, ncpu=self.ncpu)
-            fit_res.fit['int'] = fit_res.shift2wave(fit_res.fit['int'],wave=195.119)
-            m = fit_res.get_map(component = self.dict[lines[0]][1], measurement='intensity')
-            date = m.date.strftime("%Y_%m_%d__%H_%M_%S")
-            # Path(f'{date}/images/').mkdir(parents=True, exist_ok=True)
-            # m.save(f"{date}/images/eis_{'_'.join(m.measurement.lower().split())}.fits", overwrite=True)
-            Path(f'images/fits/').mkdir(parents=True, exist_ok=True)
-            Path(f'images/sis_composition/').mkdir(parents=True, exist_ok=True)
-            m.save(f"images/fits/eis_{date}_{'_'.join(m.measurement.lower().split())}.fits", overwrite=True)
-            lines.append(f"eis_{date}_{'_'.join(m.measurement.lower().split())}.fits")
-        m_Si = sunpy.map.Map(f'images/fits/{lines[-2]}')
-        m_S = sunpy.map.Map(f'images/fits/{lines[-1]}')
-        m_SiS = m_Si
-        m_SiS.meta['line_id'] = lines[2]
-        m_SiS.save(f"images/fits/eis_{'_'.join(m_SiS.measurement.lower().split())}.fits", overwrite=True)
-        m_SiS = sunpy.map.Map(m_Si.data/m_S.data, m_Si.meta)
-        # m_SiS.peek(vmax=4,cmap='RdYlBu')
-        load_plotting_routine()
-        m_SiS.plot(vmin=vmin, vmax=vmax, norm=colors.Normalize(), cmap='CMRmap')
-        # plt.figure()
-        plt.colorbar()
-        load_axes_labels()
-        # plt.savefig(f'{date}/eis_{m_SiS.measurement.lower().replace(" ","_").replace(".","_")}.png')
-        plt.savefig(f'images/sis_composition/eis_{date}_{m_SiS.measurement.lower().replace(" ","_").replace(".","_")}.png')
-
+        m_nom = self.get_intensity(lines[0])
+        m_denom = self.get_intensity(lines[1])
+        m_fip = m_nom 
+        m_fip.data = m_nom.data/m_denom.data
+        m_fip.meta['line_id'] = lines[2]
+        m_fip.meta['measrmnt'] = 'composition'
+        date = self.directory_setup(m_fip) 
+        m_fip.save(f"images/fits/eis_{'_'.join(m_SiS.measurement.lower().split())}.fits", overwrite=True)
+        self.plot_map(date, m_fip,vmin=vmin, vmax=vmax, norm=colors.Normalize(), cmap='CMRmap')
         
 if __name__ == '__main__':
     load_plotting_routine()
