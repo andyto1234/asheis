@@ -31,7 +31,7 @@ def get_time_tai(date_string):
 def read_calib_file():
     from scipy.io import readsav
 
-    calib_dir = read_cwd() / 'eis_calibration'
+    calib_dir = read_cwd()
     # Read the calibration file
     calib_file = readsav(calib_dir / 'eis_calib_warren_2014.sav')
     return calib_file['eis']
@@ -136,7 +136,7 @@ def eis_ea(input_wave, short=False, long=False):
     return ea
 
 def eis_effective_area_read(short=False, long=False):
-    calib_dir = read_cwd() / 'eis_calibration'
+    calib_dir = read_cwd() 
     if short:
         preflight = readsav(calib_dir / 'preflight_calib_short.sav')
     if long:
