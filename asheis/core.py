@@ -16,7 +16,7 @@ import os
 
 def load_plotting_routine():
     fig = plt.figure()
-    fig.set_dpi(300)
+    fig.set_dpi(150)
     BIGGER_SIZE=9
     SMALLER_SIZE=8
     plt.rc('font', size=BIGGER_SIZE)  # controls default text sizes
