@@ -40,7 +40,7 @@ def download_hdf5(filename, output_dir=None):
         
         # If both files downloaded successfully, we're done
         if data_file_downloaded and head_file_downloaded:
-            return True
+            return data_file_downloaded
         
         print(f"Failed to download from {base_url}, trying next source...")
     
@@ -72,7 +72,7 @@ def download_request(url, save_path):
                     progress_bar.update(size)
             
             print(f"Downloaded: {save_path}")
-            return True  # Success, return True
+            return save_path  # Success, return True
         
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
