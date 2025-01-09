@@ -52,6 +52,32 @@ def download_request(url, save_path):
     max_retries = 2
     retry_delay = 10  # seconds
     
+    # Check if file already exists
+    if save_path.exists():
+        try:
+            # Make a HEAD request to get the file size without downloading
+            response = requests.head(url)
+            response.raise_for_status()
+            total_size = int(response.headers.get('content-length', 0))
+            
+            # Show instant progress bar for existing file
+            with tqdm(
+                desc=f"{save_path.name}",
+                total=total_size,
+                unit='iB',
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as progress_bar:
+                progress_bar.update(total_size)  # Complete instantly
+            
+            print(f"File already exists: {save_path}")
+            return save_path
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Could not get file size for existing file: {str(e)}")
+            return save_path
+    
+    # Rest of the original download code for non-existing files
     for attempt in range(max_retries):
         try:
             response = requests.get(url, stream=True)
