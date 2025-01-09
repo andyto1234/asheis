@@ -5,7 +5,7 @@ from scipy.io import readsav
 from scipy.interpolate import interp1d
 import sunpy.map
 import re
-
+from pathlib import Path
 
 
 def get_time_tai(date_string):
@@ -31,9 +31,13 @@ def get_time_tai(date_string):
 def read_calib_file():
     from scipy.io import readsav
 
+    calib_dir = read_cwd() / 'eis_calibration'
     # Read the calibration file
-    calib_file = readsav('eis_calibration/eis_calib_warren_2014.sav')
+    calib_file = readsav(calib_dir / 'eis_calib_warren_2014.sav')
     return calib_file['eis']
+
+def read_cwd():
+    return Path(__file__).parent
 
 def eis_get_band(wave):
     # get band based on the wavelength
@@ -132,10 +136,11 @@ def eis_ea(input_wave, short=False, long=False):
     return ea
 
 def eis_effective_area_read(short=False, long=False):
+    calib_dir = read_cwd() / 'eis_calibration'
     if short:
-        preflight = readsav('eis_calibration/preflight_calib_short.sav')
+        preflight = readsav(calib_dir / 'preflight_calib_short.sav')
     if long:
-        preflight = readsav('eis_calibration/preflight_calib_long.sav')
+        preflight = readsav(calib_dir / 'preflight_calib_long.sav')
     wave = preflight['wave']
     ea = preflight['ea']
     return wave, ea
