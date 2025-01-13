@@ -161,12 +161,12 @@ class asheis:
         m.plot_settings['norm'] = ImageNormalize(vmin=vmin,vmax=vmax) # adjusting the velocity saturation
         if plot == True: self.plot_map(date, m, line, colorbar=True)
         return m
-        
     def get_width(self, line, outdir = os.getcwd(), refit=False, plot=True):
-        fit_res = self.fit_data(line,'vel', outdir)
+        fit_res = self.fit_data(line,'vel', refit, outdir)
         m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='width')
-        date = self.directory_setup(m,line)
-        if plot == True: self.plot_map(date, m, line, colorbar=True)
+        m.meta['slit_width'] = fit_res.meta['slit_width']
+        date = self.directory_setup(m,line,outdir)
+        if plot == True: self.plot_map(date, m, line, outdir, colorbar=True)
         return m
     
     def get_density(self, outdir = os.getcwd(), refit=False, plot=True, mcmc=False, **kwargs):
