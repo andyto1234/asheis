@@ -12,6 +12,7 @@ import platform
 from astropy.visualization import ImageNormalize, quantity_support
 from eis_calibration.eis_calib_2014 import calib_2014
 from eis_calibration.eis_calib_2023 import calib_2023
+from asheis.eis_width.calculation import _calculate_non_thermal_velocity_map
 import os
 
 def load_plotting_routine():
@@ -161,14 +162,25 @@ class asheis:
         m.plot_settings['norm'] = ImageNormalize(vmin=vmin,vmax=vmax) # adjusting the velocity saturation
         if plot == True: self.plot_map(date, m, line, colorbar=True)
         return m
-    def get_width(self, line, outdir = os.getcwd(), refit=False, plot=True):
-        fit_res = self.fit_data(line,'vel', refit, outdir)
-        m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='width')
-        m.meta['slit_width'] = fit_res.meta['slit_width']
-        date = self.directory_setup(m,line,outdir)
-        if plot == True: self.plot_map(date, m, line, outdir, colorbar=True)
-        return m
     
+    def get_width(self, line, outdir = os.getcwd(), refit=False, plot=True, width_only=False):
+        fit_res = self.fit_data(line,'vel', refit, outdir)
+        cent, cent_error = fit_res.get_params(component = self.dict[f'{line}'][1], param_name = 'centroid')
+        m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='width')
+        m.meta['slit_width'] = [float(x) for x in fit_res.meta['slit_width']]  # Store as list of floats
+        m.meta['cent'] = cent.tolist()  # Store as list of floats
+        m.meta['cent_error'] = cent_error.tolist()  # Store as list of floats
+        date = self.directory_setup(m,line,outdir)
+            # Process the map based on width_only flag
+        if width_only:
+            final_map = m
+        else:
+            final_map = _calculate_non_thermal_velocity_map(m)
+            final_map.meta['measrmnt']='non-thermal velocity'
+            final_map.meta['bunit']='km/s'
+        if plot == True: self.plot_map(date, final_map, line, outdir, colorbar=True)
+        return final_map
+        
     def get_density(self, outdir = os.getcwd(), refit=False, plot=True, mcmc=False, **kwargs):
         from scipy.io import readsav
         import numpy as np
