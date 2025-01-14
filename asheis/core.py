@@ -14,6 +14,7 @@ from eis_calibration.eis_calib_2014 import calib_2014
 from eis_calibration.eis_calib_2023 import calib_2023
 from asheis.eis_width.calculation import _calculate_non_thermal_velocity_map
 import os
+import astropy.units as u
 
 def load_plotting_routine():
     fig = plt.figure()
@@ -103,7 +104,7 @@ class asheis:
                 cube = cube.smooth_cube(self.rebin)
             fit_res = eispac.fit_spectra(cube, template, ncpu=self.ncpu)
             fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
-            disp = ccd_offset(195.119) - ccd_offset(fit_res.fit['wave_range'].mean())
+            disp = (ccd_offset(195.119*u.AA) - ccd_offset(fit_res.fit['wave_range'].mean()*u.AA)).to_value('pixel')
             fit_res.meta['mod_index']['crval2'] = float(fit_res.meta['mod_index']['crval2'] - disp)
             save_filepaths = eispac.save_fit(fit_res)
         else:
@@ -176,7 +177,7 @@ class asheis:
             final_map = m
         else:
             final_map = _calculate_non_thermal_velocity_map(m)
-            final_map.meta['measrmnt']='non-thermal velocity'
+            final_map.meta['measrmnt']='NTV'
             final_map.meta['bunit']='km/s'
         if plot == True: self.plot_map(date, final_map, line, outdir, colorbar=True)
         return final_map
