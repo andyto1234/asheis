@@ -91,7 +91,7 @@ class asheis:
         if template_name != 'fe_13_203_826.2c.template.h5':
             template = eispac.read_template(eispac.data.get_fit_template_filepath(template_name))
         else:
-            template = eispac.read_template('eis_density/fe_13_203_830.3c.template.h5')
+            template = eispac.read_template(Path(__file__).parent / 'eis_density/fe_13_203_830.3c.template.h5')
             template_name = 'fe_13_203_830.3c.template.h5'
 
         path = Path(f'{self.filename}'.replace("data.h5",template_name).replace(".template",f"-{self.dict[f'{line}'][1]}.fit"))
@@ -188,8 +188,11 @@ class asheis:
         from astropy.visualization import ImageNormalize
         import astropy.units as u
 
-        density_ratios = readsav(f'{self.dens_dir}/density_ratios_fe_13_203_82_202_04_.sav')['smooth_rat']
-        density_values = readsav(f'{self.dens_dir}/density_ratios_fe_13_203_82_202_04_.sav')['smooth_den']
+        # Use package relative path to locate the .sav file
+        density_file = Path(__file__).parent / 'eis_density/density_ratios_fe_13_203_82_202_04_.sav'
+        sav_data = readsav(str(density_file))
+        density_ratios = sav_data['smooth_rat']
+        density_values = sav_data['smooth_den']
 
         m_nom = self.get_intensity('fe_13_203.83', outdir, plot=False, **kwargs)
         m_denom = self.get_intensity('fe_13_202.04', outdir, plot=False, **kwargs)
