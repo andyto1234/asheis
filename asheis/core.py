@@ -33,41 +33,50 @@ def load_axes_labels():
     plt.xlabel('x (arcsec)')
     plt.ylabel('y (arcsec)')
 
-
 class asheis:
     '''
     The fitting routine auto align array and map to the 195.119 window 
     '''
     def __init__(self, filename, ncpu='max', rebin=False):
         self.filename = filename
+        """
+        The dictionary is in the format of:
+        {
+            "line_name" : ["template_name", "centroid location", "peak logT"]
+        }
+        """
+
         self.dict = {
-            "fe_8_185.21" : ["fe_08_185_213.1c.template.h5",0],
-            "fe_8_186.60" : ["fe_08_186_601.1c.template.h5",0],
-            "fe_9_188.50" : ["fe_09_188_497.3c.template.h5",0],
-            "fe_9_197.86" : ["fe_09_197_862.1c.template.h5",0],
-            "fe_10_184.54" : ["fe_10_184_536.1c.template.h5",0],
-            "fe_11_188.22" : ["fe_11_188_216.2c.template.h5",0],
-            "fe_11_188.30" : ["fe_11_188_299.2c.template.h5",1],
-            "fe_12_186.88" : ["fe_12_186_880.1c.template.h5",0],
-            "fe_12_195.12" : ["fe_12_195_119.2c.template.h5",0],
-            "fe_12_192.39" : ["fe_12_192_394.1c.template.h5",0],
-            "fe_13_202.04" : ["fe_13_202_044.1c.template.h5",0],
-            "fe_13_203.83" : ["fe_13_203_826.2c.template.h5",2],
-            "fe_14_264.79" : ["fe_14_264_787.1c.template.h5",0],
-            "fe_14_270.52" : ["fe_14_270_519.2c.template.h5",1],
-            "fe_15_284.16" : ["fe_15_284_160.2c.template.h5",1],
-            "fe_16_262.98" : ["fe_16_262_984.1c.template.h5",0],
-            "fe_17_254.87" : ["fe_17_254_870.2c.template.h5",0],
-            "fe_22_253.10" : ["fe_22_253_170.1c.template.h5",0],
-            "fe_23_263.76" : ["fe_23_263_760.1c.template.h5",0],
-            "fe_24_255.10" : ["fe_24_255_100.2c.template.h5",1],
-            "ca_14_193.87" :["ca_14_193_874.6c.template.h5",1],
-            "ar_11_188.81" :["ar_11_188_806.3c.template.h5",2],
-            "ar_14_194.40" : ["ar_14_194_396.6c.template.h5",5],
-            "si_10_258.37" :["si_10_258_375.1c.template.h5",0],
-            "s_10_264.23" : ["s__10_264_233.1c.template.h5",0],
-            "s_11_188.68" : ["s__11_188_675.3c.template.h5",1],
-            "s_13_256.69" : ["s__13_256_686.1c.template.h5",0],
+            "fe_8_185.21" : ["fe_08_185_213.1c.template.h5",0, 5.7],
+            "fe_8_186.60" : ["fe_08_186_601.1c.template.h5",0, 5.7],
+            "fe_9_188.50" : ["fe_09_188_497.3c.template.h5",0, 5.9],
+            "fe_9_197.86" : ["fe_09_197_862.1c.template.h5",0, 5.9],
+            "fe_10_184.54" : ["fe_10_184_536.1c.template.h5",0, 6.0],
+            "fe_11_188.22" : ["fe_11_188_216.2c.template.h5",0, 6.1],
+            "fe_11_188.30" : ["fe_11_188_299.2c.template.h5",1, 6.1],
+            "fe_12_186.88" : ["fe_12_186_880.1c.template.h5",0, 6.2],
+            "fe_12_195.12" : ["fe_12_195_119.2c.template.h5",0, 6.2],
+            "fe_12_192.39" : ["fe_12_192_394.1c.template.h5",0, 6.2],
+            "fe_13_202.04" : ["fe_13_202_044.1c.template.h5",0, 6.2],
+            "fe_13_203.83" : ["fe_13_203_826.2c.template.h5",2, 6.2],
+            "fe_14_264.79" : ["fe_14_264_787.1c.template.h5",0, 6.3],
+            "fe_14_270.52" : ["fe_14_270_519.2c.template.h5",1, 6.3],
+            "fe_15_284.16" : ["fe_15_284_160.2c.template.h5",1, 6.3],
+            "fe_16_262.98" : ["fe_16_262_984.1c.template.h5",0, 6.4],
+            "fe_17_254.87" : ["fe_17_254_870.2c.template.h5",0, 6.7],
+            "fe_22_253.10" : ["fe_22_253_170.1c.template.h5",0, 7.2],
+            "fe_23_263.76" : ["fe_23_263_760.1c.template.h5",0, 7.2],
+            "fe_24_255.10" : ["fe_24_255_100.2c.template.h5",1, 7.3],
+            "ca_14_193.87" :["ca_14_193_874.6c.template.h5",1, 6.6],
+            "ca_15_181.90" :["ca_15_181_900.1c.template.h5",0, 6.6],
+            "ca_15_200.97" :["ca_15_200_972.2c.template.h5",0, 6.6],
+            "ar_11_188.81" :["ar_11_188_806.3c.template.h5",2, 6.3],
+            "ar_14_194.40" : ["ar_14_194_396.6c.template.h5",5, 6.5],
+            "ar_14_191.40" : ["ar_14_191_404.2c.template.h5",1, 6.5],
+            "si_10_258.37" :["si_10_258_375.1c.template.h5",0, 6.1],
+            "s_10_264.23" : ["s__10_264_233.1c.template.h5",0, 6.2],
+            "s_11_188.68" : ["s__11_188_675.3c.template.h5",1, 6.3],
+            "s_13_256.69" : ["s__13_256_686.1c.template.h5",0, 6.4],
         }
         self.ncpu = ncpu
         self.rebin = rebin
@@ -103,12 +112,14 @@ class asheis:
                 print('Rebinning')
                 cube = cube.smooth_cube(self.rebin)
             fit_res = eispac.fit_spectra(cube, template, ncpu=self.ncpu)
-            fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
             disp = (ccd_offset(195.119*u.AA) - ccd_offset(fit_res.fit['wave_range'].mean()*u.AA)).to_value('pixel')
             fit_res.meta['mod_index']['crval2'] = float(fit_res.meta['mod_index']['crval2'] - disp)
             save_filepaths = eispac.save_fit(fit_res)
         else:
             fit_res=eispac.read_fit(path)
+        if product == 'width':
+            fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]] = fit_res.shift2wave(fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]],wave=195.119)
+        fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
 
         return fit_res
     
@@ -165,12 +176,13 @@ class asheis:
         return m
     
     def get_width(self, line, outdir = os.getcwd(), refit=False, plot=True, width_only=False):
-        fit_res = self.fit_data(line,'vel', refit, outdir)
+        fit_res = self.fit_data(line,'width', refit, outdir)
         cent, cent_error = fit_res.get_params(component = self.dict[f'{line}'][1], param_name = 'centroid')
         m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='width')
         m.meta['slit_width'] = [float(x) for x in fit_res.meta['slit_width']]  # Store as list of floats
         m.meta['cent'] = cent.tolist()  # Store as list of floats
         m.meta['cent_error'] = cent_error.tolist()  # Store as list of floats
+        m.meta['measrmnt'] = 'ntv'
         date = self.directory_setup(m,line,outdir)
             # Process the map based on width_only flag
         if width_only:
