@@ -1,4 +1,27 @@
 # a lot of information are gathered through Will Barnes Hinode-14 sunpy tutorial - It will be a good manor to cite the sunpy team
+"""
+A Python package for analyzing Hinode/EIS data with a focus on non-thermal velocity calculations and data alignment.
+
+This package provides tools for:
+- Loading and processing Hinode/EIS FITS files
+- Calculating non-thermal velocities from spectral line widths
+- Automatically aligning data to the Fe XII 195.119Å window
+- Handling multiple iron ion species from Fe VIII to Fe XXIV
+- Applying various calibration routines (2014 and 2023 calibrations)
+
+The package builds upon the eispac package and sunpy framework, extending their functionality
+for specialized EIS data analysis. Many of the techniques implemented here are based on the
+sunpy team's work, particularly from Will Barnes' Hinode-14 sunpy tutorial.
+
+References:
+    - Will Barnes' Hinode-14 sunpy tutorial
+    - The sunpy team (https://sunpy.org)
+    - Hinode/EIS documentation
+
+Example:
+    >>> from asheis import asheis
+    >>> eis_data = asheis('path/to/eis/file.fits')
+"""
 
 from pathlib import Path
 import re
@@ -7,12 +30,14 @@ import sunpy
 from matplotlib import colors
 import matplotlib.pyplot as plt
 from datetime import datetime
+import numpy as np
 # from alpha_code import alpha, alpha_map
 import platform
 from astropy.visualization import ImageNormalize, quantity_support
 from eis_calibration.eis_calib_2014 import calib_2014
 from eis_calibration.eis_calib_2023 import calib_2023
 from asheis.eis_width.calculation import _calculate_non_thermal_velocity_map
+from asheis.eis_density.density_config import DENSITY_DIAGNOSTICS
 import os
 import astropy.units as u
 
@@ -57,6 +82,7 @@ class asheis:
             "fe_12_186.88" : ["fe_12_186_880.1c.template.h5",0, 6.2],
             "fe_12_195.12" : ["fe_12_195_119.2c.template.h5",0, 6.2],
             "fe_12_192.39" : ["fe_12_192_394.1c.template.h5",0, 6.2],
+            "fe_12_196.64" : ["fe_12_196_640.2c.template.h5",0, 6.2],
             "fe_13_202.04" : ["fe_13_202_044.1c.template.h5",0, 6.2],
             "fe_13_203.83" : ["fe_13_203_826.2c.template.h5",2, 6.2],
             "fe_14_264.79" : ["fe_14_264_787.1c.template.h5",0, 6.3],
@@ -117,8 +143,11 @@ class asheis:
             save_filepaths = eispac.save_fit(fit_res)
         else:
             fit_res=eispac.read_fit(path)
+        # shift the width and centroid to the 195.119 window
         if product == 'width':
             fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]] = fit_res.shift2wave(fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]],wave=195.119)
+            fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]] = fit_res.shift2wave(fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]],wave=195.119)
+            fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]][fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]] > fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]]] = np.nan  # filter out width error > width
         fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
 
         return fit_res
@@ -194,37 +223,57 @@ class asheis:
         if plot == True: self.plot_map(date, final_map, line, outdir, colorbar=True)
         return final_map
         
-    def get_density(self, outdir = os.getcwd(), refit=False, plot=True, mcmc=False, **kwargs):
+    def get_density(self, diagnostic='fe_13', outdir=os.getcwd(), refit=False, plot=True, mcmc=False, **kwargs):
         from scipy.io import readsav
-        import numpy as np
-        from astropy.visualization import ImageNormalize
-        import astropy.units as u
 
-        # Use package relative path to locate the .sav file
-        density_file = Path(__file__).parent / 'eis_density/density_ratios_fe_13_203_82_202_04_.sav'
+        """
+        Calculate electron density using various EIS line pair diagnostics.
+        
+        Parameters
+        ----------
+        diagnostic : str
+            The density diagnostic to use. Options:
+            - 'fe_13': Fe XIII 203.83/202.04 ratio
+            - 'fe_12': Fe XII 196.64/195.12 ratio
+            (Add more as needed)
+        """
+        # Dictionary of density diagnostics
+        if diagnostic not in DENSITY_DIAGNOSTICS:
+            raise ValueError(f"Invalid diagnostic. Choose from: {list(DENSITY_DIAGNOSTICS.keys())}")
+
+        diag_info = DENSITY_DIAGNOSTICS[diagnostic]
+        
+        # Load density calibration data
+        density_file = Path(__file__).parent / f'eis_density/{diag_info["sav_file"]}'
         sav_data = readsav(str(density_file))
         density_ratios = sav_data['smooth_rat']
         density_values = sav_data['smooth_den']
 
-        m_nom = self.get_intensity('fe_13_203.83', outdir, plot=False, **kwargs)
-        m_denom = self.get_intensity('fe_13_202.04', outdir, plot=False, **kwargs)
+        # Get intensity maps for line pair
+        m_nom = self.get_intensity(diag_info['nom_line'], outdir, plot=False, **kwargs)
+        m_denom = self.get_intensity(diag_info['denom_line'], outdir, plot=False, **kwargs)
         obs_ratio = m_nom.data / m_denom.data
 
+        # Calculate density using lookup table
+        density_map = np.zeros_like(obs_ratio)
         for i in range(obs_ratio.shape[0]):
             for j in range(obs_ratio.shape[1]):
                 obs = obs_ratio[i, j]
                 closest_index = np.argmin(np.abs(density_ratios - obs))
-                obs_ratio[i, j] = density_values[closest_index]
+                density_map[i, j] = density_values[closest_index]
 
-        m = sunpy.map.Map(obs_ratio, m_nom.meta)
+        # Create density map
+        m = sunpy.map.Map(density_map, m_nom.meta)
         m.meta['measrmnt'] = 'density'
-        m.meta['bunit'] = '' # probably want to change this to 1/cm3 in the future
-        # m.meta['line_id'] = 'Fe XIII'
-        m.plot_settings['norm'] = ImageNormalize(vmin=8, vmax=10)
-        if mcmc:
-            return m.data
-        else:
-            return m
+        m.meta['bunit'] = 'cm^-3'  # Set proper density units
+        m.meta['line_id'] = diag_info['description']
+        m.plot_settings['norm'] = ImageNormalize(vmin=diag_info['vmin'], vmax=diag_info['vmax'])
+
+        if plot:
+            date = self.directory_setup(m, diagnostic, outdir)
+            self.plot_map(date, m, diagnostic, outdir, colorbar=True)
+
+        return m.data if mcmc else m
 
 
 

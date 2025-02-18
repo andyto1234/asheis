@@ -20,7 +20,7 @@ def get_ntv(width):
     """
     speed_of_light = 2.9979e5  # Speed of light in km/s
     line = str(width.meta['line_id'])
-
+    print(line)
     yy, xx = width.data.shape   
 
     # Get instrumental width array from width map
@@ -33,9 +33,11 @@ def get_ntv(width):
     cent = width.meta['cent']
     ref_wvl = np.median(cent)
     t_max = get_line_info(line)['T_MAX']
+    print(t_max)
     th_wvl = ref_wvl
     th_temp = 10**(t_max)
     mass = eis_element2mass(line)
+    print(mass)
     therm_wid = np.sqrt(2 * th_temp * 1.6022E-12 / 11604.0 / mass) / 1.0E5
     
     # Calculate thermal FWHM in Angstroms

@@ -46,7 +46,7 @@ def download_hdf5(filename, output_dir=None):
     
     # If we get here, both sources failed
     print("Failed to download from all sources")
-    return False
+    return data_path
 
 def download_request(url, save_path):
     max_retries = 2
