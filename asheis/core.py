@@ -93,6 +93,16 @@ class asheis:
             "fe_22_253.10" : ["fe_22_253_170.1c.template.h5",0, 7.2],
             "fe_23_263.76" : ["fe_23_263_760.1c.template.h5",0, 7.2],
             "fe_24_255.10" : ["fe_24_255_100.2c.template.h5",1, 7.3],
+            "mg_5_276.58" : ["mg_05_276_579.1c.template.h5",0, 5.5], # wrong temperature
+            "mg_6_268.99" : ["mg_06_268_986.1c.template.h5",0, 5.5], # wrong temperature
+            "mg_6_270.40": ["mg_06_270_394.2c.template.h5",0, 5.5], # wrong temperature
+            "mg_7_276.15" : ["mg_07_276_153.1c.template.h5",0, 5.5], # wrong temperature
+            "mg_7_280.74" : ["mg_07_280_737.1c.template.h5",0, 5.5], # wrong temperature
+            "o_4_279.63" : ["o__04_279_631.1c.template.h5",0, 5.5], # wrong temperature
+            "o_4_279.93" : ["o__04_279_933.1c.template.h5",0, 5.5], # wrong temperature
+            "o_5_192.91": ["o__05_192_906.2c.template.h5",1, 5.5], # wrong temperature
+            "o_5_248.46": ["o__05_248_456.1c.template.h5",0, 5.5], # wrong temperature
+            "o_6_184.12" : ["o__06_184_117.1c.template.h5",0, 5.5], # wrong temperature
             "ca_14_193.87" :["ca_14_193_874.6c.template.h5",1, 6.6],
             "ca_15_181.90" :["ca_15_181_900.1c.template.h5",0, 6.6],
             "ca_15_200.97" :["ca_15_200_972.2c.template.h5",0, 6.6],
@@ -103,6 +113,7 @@ class asheis:
             "s_10_264.23" : ["s__10_264_233.1c.template.h5",0, 6.2],
             "s_11_188.68" : ["s__11_188_675.3c.template.h5",1, 6.3],
             "s_13_256.69" : ["s__13_256_686.1c.template.h5",0, 6.4],
+            "he_2_256.32" : ["he_02_256_317.2c.template.h5",0, 4.7],
         }
         self.ncpu = ncpu
         self.rebin = rebin
@@ -119,6 +130,10 @@ class asheis:
         cube = eispac.read_cube(self.filename, window=template.central_wave)
         return cube
 
+    def read_template(self, template_name):
+        template = eispac.read_template(eispac.data.get_fit_template_filepath(template_name))
+        return template
+    
     def fit_data(self,line,product,refit, outdir):
         from eispac.instr import ccd_offset
         template_name=self.dict[f'{line}'][0]

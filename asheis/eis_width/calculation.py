@@ -2,7 +2,7 @@ import numpy as np
 import sunpy.map
 from asheis.eis_width.util import get_line_info, eis_element2mass
 
-def get_ntv(width):
+def _get_ntv(width_data, line_id, slit_width, cent):
     """Calculate non-thermal velocity from EIS width data. This is heavily based on the 
     wrapper asheis.
     
@@ -19,18 +19,15 @@ def get_ntv(width):
         Non-thermal velocity map in km/s
     """
     speed_of_light = 2.9979e5  # Speed of light in km/s
-    line = str(width.meta['line_id'])
+    line = str(line_id)
     print(line)
-    yy, xx = width.data.shape   
+    yy, xx = width_data.shape   
 
     # Get instrumental width array from width map
     inst_wid_arr = np.empty([yy, xx])
-    slit_wid = width.meta['slit_width']
-    for k in range(0, xx):
-        inst_wid_arr[0:, k] = slit_wid
+    inst_wid_arr[0:, :] = slit_width
         
     # Get thermal width
-    cent = width.meta['cent']
     ref_wvl = np.median(cent)
     t_max = get_line_info(line)['T_MAX']
     print(t_max)
@@ -44,7 +41,7 @@ def get_ntv(width):
     thermal_fwhm = np.sqrt(4*np.log(2))*th_wvl*therm_wid/speed_of_light
     
     # Converting width to FWHM
-    width_fwhm = width.data*2*np.sqrt(2*np.log(2))
+    width_fwhm = width_data*2*np.sqrt(2*np.log(2))
 
     # Subtracting instrumental width and thermal width from the sigma FWHM 
     dl_nt_2 = width_fwhm**2 - np.array(inst_wid_arr)**2 - np.array(thermal_fwhm)**2
@@ -58,5 +55,5 @@ def get_ntv(width):
     return v_nt
 
 def _calculate_non_thermal_velocity_map(width_map):
-    v_nt = get_ntv(width_map)
+    v_nt = _get_ntv(width_map.data, width_map.meta['line_id'], width_map.meta['slit_width'], width_map.meta['cent'])
     return sunpy.map.Map(v_nt, width_map.meta)

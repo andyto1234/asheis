@@ -22,17 +22,22 @@ def download_hdf5(filename, output_dir=None):
     else:
         output_dir = Path(output_dir)
         
+    # Create directory for downloads if it doesn't exist
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Check if files already exist
+    data_path = output_dir / data_file
+    head_path = output_dir / head_file
+    
+    if data_path.exists() and head_path.exists():
+        print(f"File already exists: {data_path}")
+        return data_path
+    
     # Try primary URL first, then backup
     for base_url in [primary_base, backup_base]:
         data_url = base_url + data_file
         head_url = base_url + head_file
         
-        # Create directory for downloads if it doesn't exist
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-        
-        # Download files
-        data_path = output_dir / data_file
-        head_path = output_dir / head_file
         print(f"Attempting download from {base_url}")
         
         data_file_downloaded = download_request(data_url, data_path)

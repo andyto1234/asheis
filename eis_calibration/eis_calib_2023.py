@@ -154,3 +154,11 @@ def calib_2023(map, ratio = False):
         return new_map, calib_ratio_2023
     else:
         return new_map
+    
+def _calib_2023_numeric(intensity, date, wavelength):
+    calib_ratio_2023 = _calib_2023_ratio_only(date, wavelength)
+    return intensity*calib_ratio_2023
+
+def _calib_2023_ratio_only(date, wavelength):
+    calib_ratio_2023 = eis_ea(wavelength)/interpol_eis_ea(date, wavelength)
+    return calib_ratio_2023
