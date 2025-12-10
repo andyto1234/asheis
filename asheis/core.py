@@ -103,10 +103,12 @@ class asheis:
             "o_5_192.91": ["o__05_192_906.2c.template.h5",1, 5.5], # wrong temperature
             "o_5_248.46": ["o__05_248_456.1c.template.h5",0, 5.5], # wrong temperature
             "o_6_184.12" : ["o__06_184_117.1c.template.h5",0, 5.5], # wrong temperature
+            "ca_14_183.46" :["ca_14_183_457.1c.template.h5",0, 6.6],
             "ca_14_193.87" :["ca_14_193_874.6c.template.h5",1, 6.6],
             "ca_15_181.90" :["ca_15_181_900.1c.template.h5",0, 6.6],
             "ca_15_200.97" :["ca_15_200_972.2c.template.h5",0, 6.6],
             "ar_11_188.81" :["ar_11_188_806.3c.template.h5",2, 6.3],
+            "ar_14_187.96" : ["ar_14_187_964.1c.template.h5",0, 6.5],
             "ar_14_194.40" : ["ar_14_194_396.6c.template.h5",5, 6.5],
             "ar_14_191.40" : ["ar_14_191_404.2c.template.h5",1, 6.5],
             "si_10_258.37" :["si_10_258_375.1c.template.h5",0, 6.1],
@@ -164,6 +166,7 @@ class asheis:
             fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]] = fit_res.shift2wave(fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]],wave=195.119)
             fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]][fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]] > fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]]] = np.nan  # filter out width error > width
         fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
+        fit_res.fit['err_int'] = fit_res.shift2wave(fit_res.fit['err_int'],wave=195.119)
 
         return fit_res
     
