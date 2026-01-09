@@ -97,7 +97,8 @@ class asheis:
             "mg_6_268.99" : ["mg_06_268_986.1c.template.h5",0, 5.5], # wrong temperature
             "mg_6_270.40": ["mg_06_270_394.2c.template.h5",0, 5.5], # wrong temperature
             "mg_7_276.15" : ["mg_07_276_153.1c.template.h5",0, 5.5], # wrong temperature
-            "mg_7_280.74" : ["mg_07_280_737.1c.template.h5",0, 5.5], # wrong temperature
+            "mg_7_278.39" : ["my_Mg_VII_template-2c.h5", 0, 5.8],  # Adjust component (0 or 1) and peak logT
+            "mg_7_280.74" : ["mg_07_280_737.1c.template.h5",0, 5.8], # wrong temperature
             "o_4_279.63" : ["o__04_279_631.1c.template.h5",0, 5.5], # wrong temperature
             "o_4_279.93" : ["o__04_279_933.1c.template.h5",0, 5.5], # wrong temperature
             "o_5_192.91": ["o__05_192_906.2c.template.h5",1, 5.5], # wrong temperature
@@ -140,7 +141,11 @@ class asheis:
         from eispac.instr import ccd_offset
         template_name=self.dict[f'{line}'][0]
         # print(self.filename.replace("data.h5",template_name))
-        if template_name != 'fe_13_203_826.2c.template.h5':
+
+        if template_name == 'my_Mg_VII_template-2c.h5':
+            template = eispac.read_template(Path(__file__).parent / 'custom_templates/my_Mg_VII_template-2c.h5')
+            template_name = 'mg_07_278.39.2c.template.h5'
+        elif template_name != 'fe_13_203_826.2c.template.h5':
             template = eispac.read_template(eispac.data.get_fit_template_filepath(template_name))
         else:
             template = eispac.read_template(Path(__file__).parent / 'eis_density/fe_13_203_830.3c.template.h5')

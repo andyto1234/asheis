@@ -24,5 +24,13 @@ DENSITY_DIAGNOSTICS = {
         'vmin': 8,
         'vmax': 10,
         'description': 'Fe XII 196_195'
+    },
+    'mg_7': {
+        'sav_file': 'density_ratios_mg_7_280_74_278_39_.sav',
+        'nom_line': 'mg_7_280.74',
+        'denom_line': 'mg_7_278.39',
+        'vmin': 8,  # Adjust these based on expected density range
+        'vmax': 10,  # Adjust these based on expected density range
+        'description': 'Mg VII 280_278'
     }
 }
