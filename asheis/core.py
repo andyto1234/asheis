@@ -120,6 +120,7 @@ class asheis:
         }
         self.ncpu = ncpu
         self.rebin = rebin
+        self._aia_alignment_cache = {}
         if platform.system() == "Linux":
             self.dens_dir = '/disk/solar17/st3/density'
         elif platform.system() == "Darwin":
@@ -139,6 +140,14 @@ class asheis:
     
     def fit_data(self,line,product,refit, outdir):
         from eispac.instr import ccd_offset
+
+        def ccd_offset_pixel(wavelength):
+            offset = ccd_offset(wavelength)
+            values = np.asarray(offset.to_value(u.pixel), dtype=float)
+            if values.size != 1:
+                raise ValueError(f"Expected one CCD offset value for {wavelength}, got shape {values.shape}")
+            return float(values.reshape(-1)[0])
+
         template_name=self.dict[f'{line}'][0]
         # print(self.filename.replace("data.h5",template_name))
 
@@ -160,7 +169,7 @@ class asheis:
                 print('Rebinning')
                 cube = cube.smooth_cube(self.rebin)
             fit_res = eispac.fit_spectra(cube, template, ncpu=self.ncpu)
-            disp = (ccd_offset(195.119*u.AA) - ccd_offset(fit_res.fit['wave_range'].mean()*u.AA)).to_value('pixel')
+            disp = ccd_offset_pixel(195.119*u.AA) - ccd_offset_pixel(fit_res.fit['wave_range'].mean()*u.AA)
             fit_res.meta['mod_index']['crval2'] = float(fit_res.meta['mod_index']['crval2'] - disp)
             save_filepaths = eispac.save_fit(fit_res)
         else:
@@ -170,7 +179,8 @@ class asheis:
             fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]] = fit_res.shift2wave(fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]],wave=195.119)
             fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]] = fit_res.shift2wave(fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]],wave=195.119)
             fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]][fit_res.fit['perror'][:,:,2+3*self.dict[f'{line}'][1]] > fit_res.fit['params'][:,:,2+3*self.dict[f'{line}'][1]]] = np.nan  # filter out width error > width
-        fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
+        if product in fit_res.fit:
+            fit_res.fit[f'{product}'] = fit_res.shift2wave(fit_res.fit[f'{product}'],wave=195.119)
         fit_res.fit['err_int'] = fit_res.shift2wave(fit_res.fit['err_int'],wave=195.119)
 
         return fit_res
@@ -198,8 +208,134 @@ class asheis:
         # plt.savefig(f'{date}/eis_{m.measurement.lower().replace(" ","_").replace(".","_")}.png')
         if savefig==True: plt.savefig(f'{outdir}/images/{amap.measurement.lower().split()[-1]}/{line}/eis_{date}_{amap.measurement.lower().replace(" ","_").replace(".","_")}.png')
         # plt.savefig(f'images/{amap.measurement.lower().split()[-1]}/eis_{date}_{amap.measurement.lower().replace(" ","_").replace(".","_")}.png')
-            
-    def get_intensity(self, line, outdir = os.getcwd(), refit=False, plot=True, mcmc=False, calib=2014):
+
+    def _aia_alignment_cache_key(
+        self,
+        outdir,
+        aia_fits,
+        aia_cache_dir,
+        jsoc_email,
+        max_aia_offset_sec,
+        qa_plot,
+    ):
+        return (
+            str(Path(self.filename).expanduser()),
+            str(Path(outdir).expanduser()),
+            str(Path(aia_fits).expanduser()) if aia_fits is not None else "",
+            str(Path(aia_cache_dir).expanduser()) if aia_cache_dir is not None else "",
+            jsoc_email or os.environ.get("JSOC_EMAIL", ""),
+            float(max_aia_offset_sec),
+            bool(qa_plot),
+        )
+
+    def _get_aia_alignment(
+        self,
+        target_map,
+        line,
+        outdir,
+        refit,
+        calib,
+        aia_fits,
+        aia_cache_dir,
+        jsoc_email,
+        max_aia_offset_sec,
+        overwrite_alignment,
+        qa_plot,
+    ):
+        from asheis.aia_alignment import compute_aia_alignment
+
+        key = self._aia_alignment_cache_key(
+            outdir,
+            aia_fits,
+            aia_cache_dir,
+            jsoc_email,
+            max_aia_offset_sec,
+            qa_plot,
+        )
+        if not overwrite_alignment and key in self._aia_alignment_cache:
+            return self._aia_alignment_cache[key]
+
+        if line == "fe_12_195.12" and target_map.measurement.lower().split()[-1] == "intensity":
+            reference_map = target_map
+        else:
+            reference_map = self.get_intensity(
+                "fe_12_195.12",
+                outdir=outdir,
+                refit=refit,
+                plot=False,
+                mcmc=False,
+                calib=calib,
+                align_aia=False,
+            )
+
+        alignment = compute_aia_alignment(
+            reference_map,
+            outdir=outdir,
+            aia_fits=aia_fits,
+            aia_cache_dir=aia_cache_dir,
+            jsoc_email=jsoc_email,
+            max_aia_offset_sec=max_aia_offset_sec,
+            overwrite=overwrite_alignment,
+            qa_plot=qa_plot,
+        )
+        self._aia_alignment_cache[key] = alignment
+        return alignment
+
+    def _apply_aia_alignment_to_map(
+        self,
+        amap,
+        line,
+        outdir,
+        refit=False,
+        calib=2014,
+        aia_fits=None,
+        aia_cache_dir=None,
+        jsoc_email=None,
+        max_aia_offset_sec=60.0,
+        overwrite_alignment=False,
+        qa_plot=True,
+    ):
+        from asheis.aia_alignment import apply_aia_alignment
+
+        alignment = self._get_aia_alignment(
+            amap,
+            line,
+            outdir,
+            refit,
+            calib,
+            aia_fits,
+            aia_cache_dir,
+            jsoc_email,
+            max_aia_offset_sec,
+            overwrite_alignment,
+            qa_plot,
+        )
+        return apply_aia_alignment(
+            amap,
+            alignment,
+            line=line,
+            outdir=outdir,
+            overwrite=overwrite_alignment,
+        )
+
+    def get_intensity(
+        self,
+        line,
+        outdir=os.getcwd(),
+        refit=False,
+        plot=True,
+        mcmc=False,
+        calib=2014,
+        align_aia=False,
+        aia_fits=None,
+        aia_cache_dir=None,
+        jsoc_email=None,
+        max_aia_offset_sec=60.0,
+        overwrite_alignment=False,
+        qa_plot=True,
+    ):
+        if align_aia and mcmc:
+            raise ValueError("align_aia=True is not supported with mcmc=True because mcmc returns arrays.")
         fit_res = self.fit_data(line,'int',refit, outdir) # Get fitdata
         m = fit_res.get_map(self.dict[f'{line}'][1],measurement='intensity') # From fitdata get map
         if calib == 2023: # Calibrate data using NRL calibration (Warren et al. 2014)
@@ -209,6 +345,20 @@ class asheis:
             m, calib_ratio = calib_2014(m, ratio=True)
             print(f'---------------------Calibrated using Warren et al. 2014; Ratio: {calib_ratio}---------------------')
         date = self.directory_setup(m,line,outdir) # Creating directories
+        if align_aia:
+            m = self._apply_aia_alignment_to_map(
+                m,
+                line,
+                outdir,
+                refit=refit,
+                calib=calib,
+                aia_fits=aia_fits,
+                aia_cache_dir=aia_cache_dir,
+                jsoc_email=jsoc_email,
+                max_aia_offset_sec=max_aia_offset_sec,
+                overwrite_alignment=overwrite_alignment,
+                qa_plot=qa_plot,
+            )
         if plot == True: self.plot_map(date, m, line, outdir) # Plot maps
         if mcmc:
             if calib:
@@ -219,15 +369,58 @@ class asheis:
         else:
             return m
         
-    def get_velocity(self, line, outdir = os.getcwd(),vmin=-10,vmax=10, refit=False, plot=True):
+    def get_velocity(
+        self,
+        line,
+        outdir=os.getcwd(),
+        vmin=-10,
+        vmax=10,
+        refit=False,
+        plot=True,
+        align_aia=False,
+        aia_fits=None,
+        aia_cache_dir=None,
+        jsoc_email=None,
+        max_aia_offset_sec=60.0,
+        overwrite_alignment=False,
+        qa_plot=True,
+    ):
         fit_res = self.fit_data(line,'vel',refit, outdir)
         m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='velocity')
         date = self.directory_setup(m,line,outdir)
         m.plot_settings['norm'] = ImageNormalize(vmin=vmin,vmax=vmax) # adjusting the velocity saturation
-        if plot == True: self.plot_map(date, m, line, colorbar=True)
+        if align_aia:
+            m = self._apply_aia_alignment_to_map(
+                m,
+                line,
+                outdir,
+                refit=refit,
+                calib=2014,
+                aia_fits=aia_fits,
+                aia_cache_dir=aia_cache_dir,
+                jsoc_email=jsoc_email,
+                max_aia_offset_sec=max_aia_offset_sec,
+                overwrite_alignment=overwrite_alignment,
+                qa_plot=qa_plot,
+            )
+        if plot == True: self.plot_map(date, m, line, outdir, colorbar=True)
         return m
     
-    def get_width(self, line, outdir = os.getcwd(), refit=False, plot=True, width_only=False):
+    def get_width(
+        self,
+        line,
+        outdir=os.getcwd(),
+        refit=False,
+        plot=True,
+        width_only=False,
+        align_aia=False,
+        aia_fits=None,
+        aia_cache_dir=None,
+        jsoc_email=None,
+        max_aia_offset_sec=60.0,
+        overwrite_alignment=False,
+        qa_plot=True,
+    ):
         fit_res = self.fit_data(line,'width', refit, outdir)
         cent, cent_error = fit_res.get_params(component = self.dict[f'{line}'][1], param_name = 'centroid')
         m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='width')
@@ -243,6 +436,20 @@ class asheis:
             final_map = _calculate_non_thermal_velocity_map(m)
             final_map.meta['measrmnt']='NTV'
             final_map.meta['bunit']='km/s'
+        if align_aia:
+            final_map = self._apply_aia_alignment_to_map(
+                final_map,
+                line,
+                outdir,
+                refit=refit,
+                calib=2014,
+                aia_fits=aia_fits,
+                aia_cache_dir=aia_cache_dir,
+                jsoc_email=jsoc_email,
+                max_aia_offset_sec=max_aia_offset_sec,
+                overwrite_alignment=overwrite_alignment,
+                qa_plot=qa_plot,
+            )
         if plot == True: self.plot_map(date, final_map, line, outdir, colorbar=True)
         return final_map
         
@@ -350,4 +557,3 @@ if __name__ == '__main__':
     #     m.plot_settings['cmap']=plt.get_cmap(cmap)
     #     date = self.directory_setup(m)
     #     self.plot_map(date, m, colorbar=True)
-

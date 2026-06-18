@@ -18,3 +18,36 @@ fe12int = test.get_intensity('fe_12_195.12') # intensity
 fe12doppler = test.get_velocity('fe_12_195.12') # doppler velocity
 fe12ntv = test.get_width('fe_12_195.12') # non-thermal velocity
 ```
+
+## AIA alignment
+
+Install the optional AIA dependencies when you want JSOC/AIA alignment:
+
+```bash
+pip install -e ".[aia]"
+```
+
+Then use the existing getters with `align_aia=True`:
+
+```python
+from asheis.core import asheis
+
+test = asheis("path/to/eis.data.h5")
+
+aligned_intensity = test.get_intensity("fe_16_262.98", align_aia=True)
+aligned_velocity = test.get_velocity("fe_12_195.12", align_aia=True)
+aligned_width = test.get_width("fe_13_202.04", align_aia=True)
+```
+
+The alignment shift is always measured from Fe XII 195.12 intensity against
+AIA 193, then applied to the header/WCS of the requested line or product. If
+`aia_fits` is not supplied, `asheis` checks the local AIA cache first and then
+downloads the nearest JSOC AIA 193 FITS file. Set a registered JSOC email with:
+
+```bash
+export JSOC_EMAIL="you@example.com"
+```
+
+The returned object remains a SunPy map. Alignment metadata is added to the map
+header, including `aia_dx`, `aia_dy`, `aia_corr`, `aia_fits`, `aia_time`,
+`aia_ref_line`, `aia_qa_plot`, and `aia_aligned_fits`.

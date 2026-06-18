@@ -2,6 +2,26 @@ import numpy as np
 import sunpy.map
 from asheis.eis_width.util import get_line_info, eis_element2mass
 
+def _instrument_width_array(slit_width, shape):
+    """Return slit width values broadcast to the EIS map shape."""
+    yy, xx = shape
+    slit_width = np.asarray(slit_width, dtype=float)
+    if slit_width.shape == shape:
+        return slit_width
+    if slit_width.size == 1:
+        return np.full(shape, float(slit_width.reshape(-1)[0]))
+    if slit_width.ndim == 1 and slit_width.size == yy:
+        return np.repeat(slit_width[:, np.newaxis], xx, axis=1)
+    if slit_width.ndim == 1 and slit_width.size == xx:
+        return np.repeat(slit_width[np.newaxis, :], yy, axis=0)
+    try:
+        return np.broadcast_to(slit_width, shape).astype(float)
+    except ValueError as exc:
+        raise ValueError(
+            f"Cannot broadcast slit_width with shape {slit_width.shape} to width map shape {shape}"
+        ) from exc
+
+
 def _get_ntv(width_data, line_id, slit_width, cent):
     """Calculate non-thermal velocity from EIS width data. This is heavily based on the 
     wrapper asheis.
@@ -24,8 +44,7 @@ def _get_ntv(width_data, line_id, slit_width, cent):
     yy, xx = width_data.shape   
 
     # Get instrumental width array from width map
-    inst_wid_arr = np.empty([yy, xx])
-    inst_wid_arr[0:, :] = slit_width
+    inst_wid_arr = _instrument_width_array(slit_width, width_data.shape)
         
     # Get thermal width
     ref_wvl = np.median(cent)
