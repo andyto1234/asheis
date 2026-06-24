@@ -74,5 +74,6 @@ def _get_ntv(width_data, line_id, slit_width, cent):
     return v_nt
 
 def _calculate_non_thermal_velocity_map(width_map):
-    v_nt = _get_ntv(width_map.data, width_map.meta['line_id'], width_map.meta['slit_width'], width_map.meta['cent'])
+    slit_width = width_map.meta.get('slitwid', width_map.meta.get('slit_width'))
+    v_nt = _get_ntv(width_map.data, width_map.meta['line_id'], slit_width, width_map.meta['cent'])
     return sunpy.map.Map(v_nt, width_map.meta)

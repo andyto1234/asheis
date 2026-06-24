@@ -19,6 +19,21 @@ fe12doppler = test.get_velocity('fe_12_195.12') # doppler velocity
 fe12ntv = test.get_width('fe_12_195.12') # non-thermal velocity
 ```
 
+## Calibration
+
+By default, `asheis` now calibrates the EIS spectral cube before fitting:
+
+```python
+fe12int_2014 = test.get_intensity("fe_12_195.12", calib=2014)
+fe12int_2023 = test.get_intensity("fe_12_195.12", calib=2023)
+fe12int_2026 = test.get_intensity("fe_12_195.12", calib=2026)
+```
+
+Use `calib=False` or `calib=None` to keep the standard EISPAC preflight
+calibration. Calibrated fit files are cached separately in directories such as
+`fit_calib_2014`, `fit_calib_2023`, `fit_calib_2026`, and `fit_preflight` next
+to the input EIS data file.
+
 ## AIA alignment
 
 Install the optional AIA dependencies when you want JSOC/AIA alignment:

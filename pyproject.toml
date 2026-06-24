@@ -51,3 +51,12 @@ dev = [
 
 [tool.setuptools]
 packages = ["eis_calibration", "asheis"]
+
+[tool.setuptools.package-data]
+eis_calibration = [
+    "fit_eis_ea_2023-05-04.sav",
+    "eis_calib_warren_2014.sav",
+    "preflight_calib_long.sav",
+    "preflight_calib_short.sav",
+    "data/young_mondal_2024/*.txt",
+]

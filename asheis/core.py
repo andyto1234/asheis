@@ -7,7 +7,7 @@ This package provides tools for:
 - Calculating non-thermal velocities from spectral line widths
 - Automatically aligning data to the Fe XII 195.119Å window
 - Handling multiple iron ion species from Fe VIII to Fe XXIV
-- Applying various calibration routines (2014 and 2023 calibrations)
+- Applying various calibration routines (2014, 2023, and 2026 calibrations)
 
 The package builds upon the eispac package and sunpy framework, extending their functionality
 for specialized EIS data analysis. Many of the techniques implemented here are based on the
@@ -34,8 +34,7 @@ import numpy as np
 # from alpha_code import alpha, alpha_map
 import platform
 from astropy.visualization import ImageNormalize, quantity_support
-from eis_calibration.eis_calib_2014 import calib_2014
-from eis_calibration.eis_calib_2023 import calib_2023
+from eis_calibration.eis_cube_calib import calibrate_cube
 from asheis.eis_width.calculation import _calculate_non_thermal_velocity_map
 from asheis.eis_density.density_config import DENSITY_DIAGNOSTICS
 import os
@@ -137,8 +136,34 @@ class asheis:
     def read_template(self, template_name):
         template = eispac.read_template(eispac.data.get_fit_template_filepath(template_name))
         return template
+
+    def _calibration_name(self, calib):
+        if calib is False or calib is None:
+            return None
+
+        calibration_name = str(calib)
+        if calibration_name not in {"2014", "2023", "2026"}:
+            raise ValueError("calib must be 2014, 2023, 2026, False, or None.")
+
+        return calibration_name
+
+    def _fit_cache_dir(self, calib):
+        calibration_name = self._calibration_name(calib)
+        if calibration_name is None:
+            cache_label = "preflight"
+        else:
+            cache_label = f"calib_{calibration_name}"
+
+        return Path(self.filename).expanduser().parent / f"fit_{cache_label}"
+
+    def _fit_cache_path(self, template_name, line, calib):
+        cache_dir = self._fit_cache_dir(calib)
+        fit_name = Path(
+            f'{self.filename}'.replace("data.h5",template_name).replace(".template",f"-{self.dict[f'{line}'][1]}.fit")
+        ).name
+        return cache_dir / fit_name
     
-    def fit_data(self,line,product,refit, outdir):
+    def fit_data(self,line,product,refit, outdir, calib=2014):
         from eispac.instr import ccd_offset
 
         def ccd_offset_pixel(wavelength):
@@ -160,18 +185,25 @@ class asheis:
             template = eispac.read_template(Path(__file__).parent / 'eis_density/fe_13_203_830.3c.template.h5')
             template_name = 'fe_13_203_830.3c.template.h5'
 
-        path = Path(f'{self.filename}'.replace("data.h5",template_name).replace(".template",f"-{self.dict[f'{line}'][1]}.fit"))
+        calibration_name = self._calibration_name(calib)
+        path = self._fit_cache_path(template_name, line, calib)
         # if self rebin != False:
         print(path)
         if path.is_file() == False or refit==True or self.rebin!=False:
-            cube = eispac.read_cube(self.filename, window=template.central_wave)
+            if calibration_name is None:
+                cube = eispac.read_cube(self.filename, window=template.central_wave, apply_radcal=True)
+            else:
+                cube = eispac.read_cube(self.filename, window=template.central_wave, apply_radcal=False)
+                cube = calibrate_cube(cube, calibration_name)
+                print(f'---------------------Calibrated cube using {cube.meta["calib_source"]}---------------------')
             if self.rebin != False:
                 print('Rebinning')
                 cube = cube.smooth_cube(self.rebin)
             fit_res = eispac.fit_spectra(cube, template, ncpu=self.ncpu)
             disp = ccd_offset_pixel(195.119*u.AA) - ccd_offset_pixel(fit_res.fit['wave_range'].mean()*u.AA)
             fit_res.meta['mod_index']['crval2'] = float(fit_res.meta['mod_index']['crval2'] - disp)
-            save_filepaths = eispac.save_fit(fit_res)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            save_filepaths = eispac.save_fit(fit_res, save_dir=path.parent)
         else:
             fit_res=eispac.read_fit(path)
         # shift the width and centroid to the 195.119 window
@@ -336,14 +368,8 @@ class asheis:
     ):
         if align_aia and mcmc:
             raise ValueError("align_aia=True is not supported with mcmc=True because mcmc returns arrays.")
-        fit_res = self.fit_data(line,'int',refit, outdir) # Get fitdata
+        fit_res = self.fit_data(line,'int',refit, outdir, calib=calib) # Get fitdata
         m = fit_res.get_map(self.dict[f'{line}'][1],measurement='intensity') # From fitdata get map
-        if calib == 2023: # Calibrate data using NRL calibration (Warren et al. 2014)
-            m, calib_ratio = calib_2023(m, ratio=True)
-            print(f'---------------------Calibrated using Del Zanna et al. 2023; Ratio: {calib_ratio}---------------------')
-        elif calib == 2014:
-            m, calib_ratio = calib_2014(m, ratio=True)
-            print(f'---------------------Calibrated using Warren et al. 2014; Ratio: {calib_ratio}---------------------')
         date = self.directory_setup(m,line,outdir) # Creating directories
         if align_aia:
             m = self._apply_aia_alignment_to_map(
@@ -361,10 +387,7 @@ class asheis:
             )
         if plot == True: self.plot_map(date, m, line, outdir) # Plot maps
         if mcmc:
-            if calib:
-                m_error = fit_res.fit['err_int'][:,:,self.dict[f'{line}'][1]]*calib_ratio
-            else:  
-                m_error = fit_res.fit['err_int'][:,:,self.dict[f'{line}'][1]]
+            m_error = fit_res.fit['err_int'][:,:,self.dict[f'{line}'][1]]
             return m.data, m_error
         else:
             return m
@@ -377,6 +400,7 @@ class asheis:
         vmax=10,
         refit=False,
         plot=True,
+        calib=2014,
         align_aia=False,
         aia_fits=None,
         aia_cache_dir=None,
@@ -385,7 +409,7 @@ class asheis:
         overwrite_alignment=False,
         qa_plot=True,
     ):
-        fit_res = self.fit_data(line,'vel',refit, outdir)
+        fit_res = self.fit_data(line,'vel',refit, outdir, calib=calib)
         m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='velocity')
         date = self.directory_setup(m,line,outdir)
         m.plot_settings['norm'] = ImageNormalize(vmin=vmin,vmax=vmax) # adjusting the velocity saturation
@@ -395,7 +419,7 @@ class asheis:
                 line,
                 outdir,
                 refit=refit,
-                calib=2014,
+                calib=calib,
                 aia_fits=aia_fits,
                 aia_cache_dir=aia_cache_dir,
                 jsoc_email=jsoc_email,
@@ -413,6 +437,7 @@ class asheis:
         refit=False,
         plot=True,
         width_only=False,
+        calib=2014,
         align_aia=False,
         aia_fits=None,
         aia_cache_dir=None,
@@ -421,12 +446,12 @@ class asheis:
         overwrite_alignment=False,
         qa_plot=True,
     ):
-        fit_res = self.fit_data(line,'width', refit, outdir)
+        fit_res = self.fit_data(line,'width', refit, outdir, calib=calib)
         cent, cent_error = fit_res.get_params(component = self.dict[f'{line}'][1], param_name = 'centroid')
         m = fit_res.get_map(component = self.dict[f'{line}'][1],measurement='width')
-        m.meta['slit_width'] = [float(x) for x in fit_res.meta['slit_width']]  # Store as list of floats
+        m.meta['slitwid'] = [float(x) for x in fit_res.meta['slit_width']]  # Store as list of floats
         m.meta['cent'] = cent.tolist()  # Store as list of floats
-        m.meta['cent_error'] = cent_error.tolist()  # Store as list of floats
+        m.meta['centerr'] = cent_error.tolist()  # Store as list of floats
         m.meta['measrmnt'] = 'ntv'
         date = self.directory_setup(m,line,outdir)
             # Process the map based on width_only flag
@@ -442,7 +467,7 @@ class asheis:
                 line,
                 outdir,
                 refit=refit,
-                calib=2014,
+                calib=calib,
                 aia_fits=aia_fits,
                 aia_cache_dir=aia_cache_dir,
                 jsoc_email=jsoc_email,
