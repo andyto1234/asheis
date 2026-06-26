@@ -4,6 +4,7 @@ import astropy.units as u
 import numpy as np
 
 import asheis.core as core
+from asheis import asheis as public_asheis
 from asheis.core import asheis
 
 
@@ -73,7 +74,7 @@ def make_asheis(tmp_path):
     return obj
 
 
-def patch_fit_dependencies(monkeypatch, read_cube_calls, calibrate_calls, save_dirs):
+def patch_fit_dependencies(monkeypatch, read_cube_calls, calibrate_calls, save_dirs, ccd_offset=None):
     import eispac.instr
 
     monkeypatch.setattr(
@@ -106,7 +107,110 @@ def patch_fit_dependencies(monkeypatch, read_cube_calls, calibrate_calls, save_d
     monkeypatch.setattr(core, "calibrate_cube", fake_calibrate_cube)
     monkeypatch.setattr(core.eispac, "fit_spectra", lambda cube, template, ncpu: FakeFitResult())
     monkeypatch.setattr(core.eispac, "save_fit", fake_save_fit)
-    monkeypatch.setattr(eispac.instr, "ccd_offset", lambda wavelength: 0.0 * u.pixel)
+    if ccd_offset is None:
+        ccd_offset = lambda wavelength: 0.0 * u.pixel
+    monkeypatch.setattr(eispac.instr, "ccd_offset", ccd_offset)
+
+
+def test_public_package_import_exports_asheis_class():
+    assert public_asheis is asheis
+
+
+def test_default_fit_uses_2023_calibration(monkeypatch, tmp_path):
+    obj = make_asheis(tmp_path)
+    read_cube_calls = []
+    calibrate_calls = []
+    save_dirs = []
+    patch_fit_dependencies(monkeypatch, read_cube_calls, calibrate_calls, save_dirs)
+
+    obj.fit_data("fe_12_195.12", "int", False, tmp_path)
+
+    assert read_cube_calls[0]["apply_radcal"] is False
+    assert calibrate_calls == ["2023"]
+    assert save_dirs[0].name == "fit_calib_2023"
+
+
+def test_true_calibration_alias_uses_default_2023(monkeypatch, tmp_path):
+    obj = make_asheis(tmp_path)
+    read_cube_calls = []
+    calibrate_calls = []
+    save_dirs = []
+    patch_fit_dependencies(monkeypatch, read_cube_calls, calibrate_calls, save_dirs)
+
+    obj.fit_data("fe_12_195.12", "int", False, tmp_path, calib=True)
+
+    assert read_cube_calls[0]["apply_radcal"] is False
+    assert calibrate_calls == ["2023"]
+    assert save_dirs[0].name == "fit_calib_2023"
+
+
+def test_fit_accepts_eispac_numpy_ccd_offset(monkeypatch, tmp_path):
+    obj = make_asheis(tmp_path)
+    read_cube_calls = []
+    calibrate_calls = []
+    save_dirs = []
+    patch_fit_dependencies(
+        monkeypatch,
+        read_cube_calls,
+        calibrate_calls,
+        save_dirs,
+        ccd_offset=lambda wavelength: np.atleast_1d(float(np.asarray(wavelength).reshape(-1)[0])),
+    )
+
+    obj.fit_data("fe_12_195.12", "int", False, tmp_path, calib=2023)
+
+    assert save_dirs[0].name == "fit_calib_2023"
+
+
+def test_fit_passes_quantity_to_eispac_ccd_offset(monkeypatch, tmp_path):
+    obj = make_asheis(tmp_path)
+    read_cube_calls = []
+    calibrate_calls = []
+    save_dirs = []
+
+    def strict_ccd_offset(wavelength):
+        assert hasattr(wavelength, "unit")
+        return 0.0 * u.pixel
+
+    patch_fit_dependencies(
+        monkeypatch,
+        read_cube_calls,
+        calibrate_calls,
+        save_dirs,
+        ccd_offset=strict_ccd_offset,
+    )
+
+    obj.fit_data("fe_12_195.12", "int", False, tmp_path, calib=2023)
+
+    assert save_dirs[0].name == "fit_calib_2023"
+
+
+def test_fit_falls_back_to_float_for_legacy_ccd_offset(monkeypatch, tmp_path):
+    obj = make_asheis(tmp_path)
+    read_cube_calls = []
+    calibrate_calls = []
+    save_dirs = []
+    calls = []
+
+    def legacy_ccd_offset(wavelength):
+        calls.append(wavelength)
+        if hasattr(wavelength, "unit"):
+            raise u.UnitConversionError("legacy ccd_offset expects a bare wavelength")
+        return np.atleast_1d(0.0)
+
+    patch_fit_dependencies(
+        monkeypatch,
+        read_cube_calls,
+        calibrate_calls,
+        save_dirs,
+        ccd_offset=legacy_ccd_offset,
+    )
+
+    obj.fit_data("fe_12_195.12", "int", False, tmp_path, calib=2023)
+
+    assert any(hasattr(wavelength, "unit") for wavelength in calls)
+    assert any(not hasattr(wavelength, "unit") for wavelength in calls)
+    assert save_dirs[0].name == "fit_calib_2023"
 
 
 def test_calibrated_fit_reads_counts_cube_and_uses_calibration_cache(monkeypatch, tmp_path):

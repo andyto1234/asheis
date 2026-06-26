@@ -21,9 +21,11 @@ fe12ntv = test.get_width('fe_12_195.12') # non-thermal velocity
 
 ## Calibration
 
-By default, `asheis` now calibrates the EIS spectral cube before fitting:
+By default, `asheis` now calibrates the EIS spectral cube with the 2023
+calibration before fitting:
 
 ```python
+fe12int_default = test.get_intensity("fe_12_195.12")  # Uses calib=2023
 fe12int_2014 = test.get_intensity("fe_12_195.12", calib=2014)
 fe12int_2023 = test.get_intensity("fe_12_195.12", calib=2023)
 fe12int_2026 = test.get_intensity("fe_12_195.12", calib=2026)

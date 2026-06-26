@@ -140,10 +140,12 @@ class asheis:
     def _calibration_name(self, calib):
         if calib is False or calib is None:
             return None
+        if calib is True:
+            calib = 2023
 
         calibration_name = str(calib)
         if calibration_name not in {"2014", "2023", "2026"}:
-            raise ValueError("calib must be 2014, 2023, 2026, False, or None.")
+            raise ValueError("calib must be 2014, 2023, 2026, True, False, or None.")
 
         return calibration_name
 
@@ -163,12 +165,19 @@ class asheis:
         ).name
         return cache_dir / fit_name
     
-    def fit_data(self,line,product,refit, outdir, calib=2014):
+    def fit_data(self,line,product,refit, outdir, calib=2023):
         from eispac.instr import ccd_offset
 
         def ccd_offset_pixel(wavelength):
-            offset = ccd_offset(wavelength)
-            values = np.asarray(offset.to_value(u.pixel), dtype=float)
+            wave = u.Quantity(wavelength, u.AA).to(u.AA)
+            try:
+                offset = ccd_offset(wave)
+            except u.UnitConversionError:
+                offset = ccd_offset(wave.to_value(u.AA))
+            if hasattr(offset, "to_value"):
+                values = np.asarray(offset.to_value(u.pixel), dtype=float)
+            else:
+                values = np.asarray(offset, dtype=float)
             if values.size != 1:
                 raise ValueError(f"Expected one CCD offset value for {wavelength}, got shape {values.shape}")
             return float(values.reshape(-1)[0])
@@ -319,7 +328,7 @@ class asheis:
         line,
         outdir,
         refit=False,
-        calib=2014,
+        calib=2023,
         aia_fits=None,
         aia_cache_dir=None,
         jsoc_email=None,
@@ -357,7 +366,7 @@ class asheis:
         refit=False,
         plot=True,
         mcmc=False,
-        calib=2014,
+        calib=2023,
         align_aia=False,
         aia_fits=None,
         aia_cache_dir=None,
@@ -400,7 +409,7 @@ class asheis:
         vmax=10,
         refit=False,
         plot=True,
-        calib=2014,
+        calib=2023,
         align_aia=False,
         aia_fits=None,
         aia_cache_dir=None,
@@ -437,7 +446,7 @@ class asheis:
         refit=False,
         plot=True,
         width_only=False,
-        calib=2014,
+        calib=2023,
         align_aia=False,
         aia_fits=None,
         aia_cache_dir=None,

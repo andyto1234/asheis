@@ -32,5 +32,13 @@ DENSITY_DIAGNOSTICS = {
         'vmin': 8,  # Adjust these based on expected density range
         'vmax': 10,  # Adjust these based on expected density range
         'description': 'Mg VII 280_278'
+    },
+    'ca_15': {
+        'sav_file': 'density_ratios_ca_15_181_90_200_97_.sav',
+        'nom_line': 'ca_15_181.90',
+        'denom_line': 'ca_15_200.97',
+        'vmin': 8,
+        'vmax': 10,
+        'description': 'Ca XV 181_200'
     }
 }

@@ -49,8 +49,9 @@ dev = [
     "flake8>=4.0",
 ]
 
-[tool.setuptools]
-packages = ["eis_calibration", "asheis"]
+[tool.setuptools.packages.find]
+include = ["asheis*", "eis_calibration*"]
+exclude = ["tests*", "data_eis*", "images*", "manual_aia_alignment_qa*"]
 
 [tool.setuptools.package-data]
 eis_calibration = [
@@ -59,4 +60,9 @@ eis_calibration = [
     "preflight_calib_long.sav",
     "preflight_calib_short.sav",
     "data/young_mondal_2024/*.txt",
+]
+asheis = [
+    "custom_templates/*.h5",
+    "eis_density/*.sav",
+    "eis_density/*.h5",
 ]
