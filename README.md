@@ -68,3 +68,41 @@ export JSOC_EMAIL="you@example.com"
 The returned object remains a SunPy map. Alignment metadata is added to the map
 header, including `aia_dx`, `aia_dy`, `aia_corr`, `aia_fits`, `aia_time`,
 `aia_ref_line`, `aia_qa_plot`, and `aia_aligned_fits`.
+
+If you already have a local directory of AIA 193 FITS files, you can search it
+directly and align without a JSOC query:
+
+```python
+from asheis.aia_alignment import align_eis_map_to_closest_aia
+
+reference = test.get_intensity("fe_12_195.12", plot=False)
+target = test.get_intensity("fe_16_262.98", plot=False)
+
+aligned, alignment, delta = align_eis_map_to_closest_aia(
+    reference,
+    target_eis_map=target,
+    aia_193_dir="path/to/aia_193",
+    outdir=".",
+    line="fe_16_262.98",
+    time_tolerance=10,
+)
+```
+
+For a lower-level workflow, first find the local AIA file and then pass it to
+the existing alignment functions:
+
+```python
+from asheis.aia_alignment import (
+    apply_aia_alignment,
+    compute_aia_alignment,
+    find_closest_aia_filename,
+)
+
+aia_fits, delta = find_closest_aia_filename(
+    reference,
+    "path/to/aia_193",
+    time_tolerance=10,
+)
+alignment = compute_aia_alignment(reference, outdir=".", aia_fits=aia_fits)
+aligned = apply_aia_alignment(target, alignment, line="fe_16_262.98", outdir=".")
+```

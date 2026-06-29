@@ -48,9 +48,30 @@ class AIAAlignment:
     qa_plot: str = ""
 
 
+EIS_TIME_KEYS = ("date_obs", "date-obs", "DATE_OBS", "DATE-OBS")
+
+
 def map_time(amap) -> Time:
-    """Return a SunPy map date as an Astropy UTC Time."""
-    return Time(amap.date).utc
+    """Return a map or HDU-like observation date as an Astropy UTC Time."""
+    if hasattr(amap, "date"):
+        try:
+            return Time(amap.date).utc
+        except Exception:
+            pass
+
+    for attr in ("meta", "header"):
+        values = getattr(amap, attr, None)
+        if values is None:
+            continue
+        for key in EIS_TIME_KEYS:
+            try:
+                value = values[key]
+            except (KeyError, TypeError):
+                continue
+            if value is not None and str(value).strip():
+                return Time(value).utc
+
+    raise ValueError("Cannot determine EIS observation date.")
 
 
 def default_aia_cache_dir(outdir: str | os.PathLike[str]) -> Path:
@@ -77,16 +98,17 @@ def parse_aia_time_from_filename(path: Path) -> Time | None:
 
 
 def seconds_between(left: Time, right: Time) -> float:
-    return abs((Time(left).utc - Time(right).utc).to_value(u.s))
+    return float(abs((Time(left).utc - Time(right).utc).to_value(u.s)))
 
 
-def find_nearest_cached_aia(
+def _find_nearest_cached_aia_with_offset(
     cache_dir: Path,
     eis_time: Time,
     *,
     max_offset_sec: float,
-) -> Path | None:
-    """Find the nearest cached AIA 193 FITS file within a time tolerance."""
+) -> tuple[Path, float] | None:
+    """Find the nearest cached AIA 193 FITS file and its offset in seconds."""
+    cache_dir = Path(cache_dir).expanduser()
     if not cache_dir.exists():
         return None
 
@@ -98,9 +120,47 @@ def find_nearest_cached_aia(
         if aia_time is None:
             continue
         offset = seconds_between(aia_time, eis_time)
-        if offset <= max_offset_sec and (best is None or offset < best[0]):
+        within_tolerance = offset <= max_offset_sec or np.isclose(
+            offset,
+            max_offset_sec,
+            rtol=0.0,
+            atol=1e-9,
+        )
+        if within_tolerance and (best is None or offset < best[0]):
             best = (offset, path)
-    return best[1] if best is not None else None
+    return (best[1], best[0]) if best is not None else None
+
+
+def find_closest_aia_filename(
+    eis_map,
+    aia_193_dir: str | os.PathLike[str],
+    time_tolerance: float = 10.0,
+) -> tuple[str | None, float | None]:
+    """Find the closest local AIA 193 FITS filename to an EIS observation time."""
+    result = _find_nearest_cached_aia_with_offset(
+        Path(aia_193_dir),
+        map_time(eis_map),
+        max_offset_sec=float(time_tolerance),
+    )
+    if result is None:
+        return None, None
+    path, offset = result
+    return str(path), offset
+
+
+def find_nearest_cached_aia(
+    cache_dir: Path,
+    eis_time: Time,
+    *,
+    max_offset_sec: float,
+) -> Path | None:
+    """Find the nearest cached AIA 193 FITS file within a time tolerance."""
+    result = _find_nearest_cached_aia_with_offset(
+        cache_dir,
+        eis_time,
+        max_offset_sec=max_offset_sec,
+    )
+    return result[0] if result is not None else None
 
 
 def require_jsoc_email(jsoc_email: str | None) -> str:
@@ -682,3 +742,45 @@ def apply_aia_alignment(
     aligned.meta["aia_qa_plot"] = alignment.qa_plot
     aligned.meta["aia_aligned_fits"] = str(path)
     return aligned
+
+
+def align_eis_map_to_closest_aia(
+    reference_eis_map,
+    *,
+    aia_193_dir: str | os.PathLike[str],
+    outdir: str | os.PathLike[str],
+    line: str,
+    target_eis_map=None,
+    time_tolerance: float = 10.0,
+    overwrite: bool = False,
+    qa_plot: bool = True,
+    aia_margin_arcsec: float = 80.0,
+) -> tuple[object, AIAAlignment, float]:
+    """Align an EIS map using the closest local AIA 193 FITS file."""
+    aia_fits, delta_sec = find_closest_aia_filename(
+        reference_eis_map,
+        aia_193_dir,
+        time_tolerance=time_tolerance,
+    )
+    if aia_fits is None or delta_sec is None:
+        raise FileNotFoundError(
+            "No local AIA 193 FITS file found within "
+            f"{float(time_tolerance):.1f}s of the EIS observation time."
+        )
+
+    alignment = compute_aia_alignment(
+        reference_eis_map,
+        outdir=outdir,
+        aia_fits=aia_fits,
+        overwrite=overwrite,
+        qa_plot=qa_plot,
+        aia_margin_arcsec=aia_margin_arcsec,
+    )
+    aligned = apply_aia_alignment(
+        reference_eis_map if target_eis_map is None else target_eis_map,
+        alignment,
+        line=line,
+        outdir=outdir,
+        overwrite=overwrite,
+    )
+    return aligned, alignment, delta_sec
